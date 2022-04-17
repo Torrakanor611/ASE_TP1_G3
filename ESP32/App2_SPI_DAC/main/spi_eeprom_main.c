@@ -19,6 +19,9 @@
 #include "esp_log.h"
 #include "spi_eeprom.h"
 
+#include "esp_sleep.h"
+#include "esp_check.h"
+
 
 /*
  This code demonstrates how to use the SPI master half duplex mode to read/write a AT932C46D EEPROM (8-bit mode).
@@ -31,8 +34,28 @@
 #define PIN_NUM_CLK  18
 #define PIN_NUM_CS   5
 
+#define TIMER_WAKEUP_TIME_US    (2 * 1000 * 1000)
 
 static const char TAG[] = "main";
+
+
+
+
+
+/**
+ * ESP timer wake up (from light sleep mode)
+ **/ 
+
+esp_err_t timer_wakeup(void)
+{
+    ESP_RETURN_ON_ERROR(esp_sleep_enable_timer_wakeup(TIMER_WAKEUP_TIME_US), TAG, "Configure timer as wakeup source failed");
+    ESP_LOGI(TAG, "timer wakeup source is ready");
+    return ESP_OK;
+}
+
+
+
+
 
 void app_main(void)
 {
@@ -48,8 +71,7 @@ void app_main(void)
         .max_transfer_sz = 32,
     };
     //Initialize the SPI bus
-    ret = spi_bus_initialize(EEPROM_HOST, &buscfg, SPI_DMA_CH_AUTO);
-    ESP_ERROR_CHECK(ret);
+    ESP_ERROR_CHECK(spi_bus_initialize(EEPROM_HOST, &buscfg, SPI_DMA_CH_AUTO));
 
     eeprom_config_t eeprom_config = {
         .cs_io = PIN_NUM_CS,
@@ -85,6 +107,8 @@ void app_main(void)
 
 
 
+    //Configure timer wake up source
+    timer_wakeup();
 
     //Enable dac channel (GPIO 25)
     dac_output_enable(DAC_CHANNEL_1);    
@@ -99,7 +123,12 @@ void app_main(void)
             dac_output_voltage(DAC_CHANNEL_1, i);
             vTaskDelay(10 / portTICK_RATE_MS);
         }
-        vTaskDelay(10 / portTICK_RATE_MS);
+        //vTaskDelay(10 / portTICK_RATE_MS);
+        
+        esp_light_sleep_start();
+        
+        if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_TIMER)
+          ESP_LOGI(TAG, "Woke up from light sleep mode by timer wource");
 
     }
 

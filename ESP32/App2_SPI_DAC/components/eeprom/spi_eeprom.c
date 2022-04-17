@@ -22,7 +22,7 @@
 
 #define EEPROM_BUSY_TIMEOUT_MS  5
 
-#define EEPROM_CLK_FREQ         (5*1000*1000)   //When powered by 3.3V, EEPROM max freq is 1MHz
+#define EEPROM_CLK_FREQ         (500000)   //When powered by 3.3V, EEPROM max freq is 1MHz
 #define EEPROM_INPUT_DELAY_NS   ((1000*1000*1000/EEPROM_CLK_FREQ)/2+20)
 
 #define ADDR_MASK       0x01FF
@@ -144,7 +144,7 @@ esp_err_t spi_eeprom_init(const eeprom_config_t *cfg, eeprom_context_t** out_ctx
 
     spi_device_interface_config_t devcfg={
         .command_bits = 8,
-        .address_bits = 8,
+        .address_bits = 9,
         .clock_speed_hz = EEPROM_CLK_FREQ,
         .mode = 0,          //SPI mode 0
         /*
@@ -208,6 +208,7 @@ esp_err_t spi_eeprom_read(eeprom_context_t* ctx, uint8_t addr, uint8_t* out_data
     addr = addr & ADDR_MASK;
     spi_transaction_t t = {
         .cmd = READ | ((addr & 0x100) >> 5),
+        .addr = addr, 
         .rxlength = 8,
         .flags = SPI_TRANS_USE_RXDATA,
         .user = ctx,
