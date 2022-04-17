@@ -1,2 +1,4 @@
-idf_component_register(SRCS "spi_dac_main.c"
+set(srcs "spi_eeprom_main.c")
+
+idf_component_register(SRCS ${srcs}
                     INCLUDE_DIRS ".")
