@@ -78,11 +78,8 @@ static void i2c_pwm_temperature_task(void *arg){
   // Set the LEDC peripheral configuration
   ledc_init();
 
-  // Set initial duty to 50% of both channels/leds
-  ESP_ERROR_CHECK(ledc_set_duty(LEDC_MODE, LEDC_LS_CH2_CHANNEL, LEDC_DUTY));
-  ESP_ERROR_CHECK(ledc_update_duty(LEDC_MODE, LEDC_LS_CH2_CHANNEL));
-  ESP_ERROR_CHECK(ledc_set_duty(LEDC_MODE, LEDC_LS_CH3_CHANNEL, LEDC_DUTY));
-  ESP_ERROR_CHECK(ledc_update_duty(LEDC_MODE, LEDC_LS_CH3_CHANNEL));
+  //Initialize device
+  ledc_fade_func_install(0);
 
   // periodically read temp values from sensor and set the sensor to power saving mode
   while(1){
@@ -91,40 +88,60 @@ static void i2c_pwm_temperature_task(void *arg){
     i2c_master_read_tc74_config(I2C_MASTER_NUM,&operation_mode);
     i2c_master_set_tc74_mode(I2C_MASTER_NUM, SET_NORM_OP_VALUE);
 
-    vTaskDelay(250 / portTICK_RATE_MS);
+    vTaskDelay(2000 / portTICK_RATE_MS);
 
     //Read temperature
     i2c_master_read_temp(I2C_MASTER_NUM, &temperature_value);
     ESP_LOGI(TAG,"Temperature is : %d", temperature_value);
 
-    //If temperature rizes GPIO5 up (GPIO4 LEDC duty cycle 0%)
-    if (old_temperature < temperature_value){
-      ESP_ERROR_CHECK(ledc_set_duty(LEDC_MODE, LEDC_LS_CH3_CHANNEL, 0));
-      ESP_ERROR_CHECK(ledc_update_duty(LEDC_MODE, LEDC_LS_CH3_CHANNEL));
-      ESP_ERROR_CHECK(ledc_set_duty(LEDC_MODE, LEDC_LS_CH2_CHANNEL, LEDC_DUTY));
-      ESP_ERROR_CHECK(ledc_update_duty(LEDC_MODE, LEDC_LS_CH2_CHANNEL));
-    }
-    //If temperature falls GPIO4 up (GPIO5 LEDC duty cycle 0%)
-    else if (old_temperature > temperature_value){
-      ESP_ERROR_CHECK(ledc_set_duty(LEDC_MODE, LEDC_LS_CH2_CHANNEL, 0));
-      ESP_ERROR_CHECK(ledc_update_duty(LEDC_MODE, LEDC_LS_CH2_CHANNEL));
-      ESP_ERROR_CHECK(ledc_set_duty(LEDC_MODE, LEDC_LS_CH3_CHANNEL, LEDC_DUTY));
-      ESP_ERROR_CHECK(ledc_update_duty(LEDC_MODE, LEDC_LS_CH3_CHANNEL));
-    }
-    //If temperature stays the same both up
-    else{
-      ESP_ERROR_CHECK(ledc_set_duty(LEDC_MODE, LEDC_LS_CH2_CHANNEL, LEDC_DUTY));
-      ESP_ERROR_CHECK(ledc_update_duty(LEDC_MODE, LEDC_LS_CH2_CHANNEL));
-      ESP_ERROR_CHECK(ledc_set_duty(LEDC_MODE, LEDC_LS_CH3_CHANNEL, LEDC_DUTY));
-      ESP_ERROR_CHECK(ledc_update_duty(LEDC_MODE, LEDC_LS_CH3_CHANNEL));
-    }
-    old_temperature = temperature_value;
-    
     //Read tc74 operation mode and write data in sensor (set it in standby mode)
     i2c_master_read_tc74_config(I2C_MASTER_NUM, &operation_mode);
     i2c_master_set_tc74_mode(I2C_MASTER_NUM, SET_STANBY_VALUE);
 
-    vTaskDelay(4000 / portTICK_RATE_MS);
+    //If temperature rizes, set ledc channel fade 2 (GPIO 4) and fadeout after
+    if(old_temperature < temperature_value) {
+      ESP_ERROR_CHECK(ledc_set_fade_with_time(LEDC_MODE, LEDC_LS_CH2_CHANNEL, 6000, 800));
+      ledc_fade_start(LEDC_MODE, LEDC_LS_CH2_CHANNEL, LEDC_FADE_NO_WAIT);
+
+      ESP_ERROR_CHECK(ledc_set_duty(LEDC_MODE, LEDC_LS_CH3_CHANNEL, 0));
+      ESP_ERROR_CHECK(ledc_update_duty(LEDC_MODE, LEDC_LS_CH3_CHANNEL));
+
+      vTaskDelay(500/ portTICK_RATE_MS);
+
+      ESP_ERROR_CHECK(ledc_set_fade_with_time(LEDC_MODE, LEDC_LS_CH2_CHANNEL, 0, 800));
+      ledc_fade_start(LEDC_MODE, LEDC_LS_CH2_CHANNEL, LEDC_FADE_NO_WAIT);
+    }
+    //If temperature drops, set ledc channel fade 3 (GPIO 5) and fadeout after
+    else if (old_temperature > temperature_value) {
+      ESP_ERROR_CHECK(ledc_set_fade_with_time(LEDC_MODE, LEDC_LS_CH3_CHANNEL, 6000, 800));
+      ledc_fade_start(LEDC_MODE, LEDC_LS_CH3_CHANNEL, LEDC_FADE_NO_WAIT);
+
+      ESP_ERROR_CHECK(ledc_set_duty(LEDC_MODE, LEDC_LS_CH2_CHANNEL, 0));
+      ESP_ERROR_CHECK(ledc_update_duty(LEDC_MODE, LEDC_LS_CH2_CHANNEL));
+
+      vTaskDelay(500/ portTICK_RATE_MS);
+
+      ESP_ERROR_CHECK(ledc_set_fade_with_time(LEDC_MODE, LEDC_LS_CH3_CHANNEL, 0, 800));
+      ledc_fade_start(LEDC_MODE, LEDC_LS_CH3_CHANNEL, LEDC_FADE_NO_WAIT);
+    }
+    //If temperature mantains, set both ledc channels and fadeout afterwards
+    else {
+      ESP_ERROR_CHECK(ledc_set_fade_with_time(LEDC_MODE, LEDC_LS_CH3_CHANNEL, 6000, 800));
+      ledc_fade_start(LEDC_MODE, LEDC_LS_CH3_CHANNEL, LEDC_FADE_NO_WAIT);
+      ESP_ERROR_CHECK(ledc_set_fade_with_time(LEDC_MODE, LEDC_LS_CH2_CHANNEL, 6000, 800));
+      ledc_fade_start(LEDC_MODE, LEDC_LS_CH2_CHANNEL, LEDC_FADE_NO_WAIT);
+
+      vTaskDelay(500/ portTICK_RATE_MS);
+
+      ESP_ERROR_CHECK(ledc_set_fade_with_time(LEDC_MODE, LEDC_LS_CH3_CHANNEL, 0, 800));
+      ledc_fade_start(LEDC_MODE, LEDC_LS_CH3_CHANNEL, LEDC_FADE_NO_WAIT);
+      ESP_ERROR_CHECK(ledc_set_fade_with_time(LEDC_MODE, LEDC_LS_CH2_CHANNEL, 0, 800));
+      ledc_fade_start(LEDC_MODE, LEDC_LS_CH2_CHANNEL, LEDC_FADE_NO_WAIT);
+    }
+
+    old_temperature = temperature_value;
+    vTaskDelay(100/ portTICK_RATE_MS);
+
   }
 }
 
