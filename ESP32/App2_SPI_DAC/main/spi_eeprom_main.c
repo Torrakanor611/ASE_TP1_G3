@@ -1,11 +1,4 @@
-/* SPI Master Half Duplex EEPROM example.
 
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
-
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
-*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,32 +7,28 @@
 #include "driver/spi_master.h"
 #include "driver/gpio.h"
 #include "driver/dac.h"
-
 #include "sdkconfig.h"
 #include "esp_log.h"
 #include "spi_eeprom.h"
-
 #include "esp_sleep.h"
 #include "esp_check.h"
 
 
-/*
- This code demonstrates how to use the SPI master half duplex mode to read/write a AT932C46D EEPROM (8-bit mode).
-*/
+/**
+ * Bibliography and examples 
+ * 
+ * https://github.com/nopnop2002/esp-idf-spi-eeprom
+ * https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/spi_master.html
+ * https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/dac.html
+ * https://github.com/espressif/esp-idf/tree/master/examples/system/light_sleep/main
+ * 
+ **/ 
 
-
-#define EEPROM_HOST  VSPI_HOST
-#define PIN_NUM_MISO 19
-#define PIN_NUM_MOSI 23
-#define PIN_NUM_CLK  18
-#define PIN_NUM_CS   5
 
 #define TIMER_WAKEUP_TIME_US    (2 * 1000 * 1000)
+#define	EEPROM_MODEL "25LC040A"
 
 static const char TAG[] = "main";
-
-
-
 
 
 /**
@@ -57,54 +46,91 @@ esp_err_t timer_wakeup(void)
 
 
 
+void dump(uint8_t *dt, int n)
+{
+	uint16_t clm = 0;
+	uint8_t data;
+	uint32_t saddr =0;
+	uint32_t eaddr =n-1;
+
+	printf("--------------------------------------------------------\n");
+	uint32_t addr;
+	for (addr = saddr; addr <= eaddr; addr++) {
+		data = dt[addr];
+		if (clm == 0) {
+			printf("%05x: ",addr);
+		}
+
+		printf("%02x ",data);
+		clm++;
+		if (clm == 16) {
+			printf("| \n");
+			clm = 0;
+		}
+	}
+	printf("--------------------------------------------------------\n");
+}
+
+
+
+
+
+
 void app_main(void)
 {
-    esp_err_t ret;
+	EEPROM_t dev;
+	spi_master_init(&dev);
+	int32_t totalBytes = eeprom_TotalBytes(&dev);
+	ESP_LOGI(TAG, "totalBytes=%d Bytes",totalBytes);
 
-    ESP_LOGI(TAG, "Initializing bus SPI%d...", EEPROM_HOST+1);
-    spi_bus_config_t buscfg={
-        .miso_io_num = PIN_NUM_MISO,
-        .mosi_io_num = PIN_NUM_MOSI,
-        .sclk_io_num = PIN_NUM_CLK,
-        .quadwp_io_num = -1,
-        .quadhd_io_num = -1,
-        .max_transfer_sz = 32,
-    };
-    //Initialize the SPI bus
-    ESP_ERROR_CHECK(spi_bus_initialize(EEPROM_HOST, &buscfg, SPI_DMA_CH_AUTO));
+	// Get Status Register
+	uint8_t reg;
+	esp_err_t ret;
+	ret = eeprom_ReadStatusReg(&dev, &reg);
+	if (ret != ESP_OK) {
+		ESP_LOGI(TAG, "ReadStatusReg Fail %d",ret);
+		while(1) { vTaskDelay(1); }
+	} 
+	ESP_LOGI(TAG, "readStatusReg : 0x%02x", reg);
 
-    eeprom_config_t eeprom_config = {
-        .cs_io = PIN_NUM_CS,
-        .host = EEPROM_HOST,
-        .miso_io = PIN_NUM_MISO,
-    };
 
-    eeprom_handle_t eeprom_handle;
 
-    ESP_LOGI(TAG, "Initializing device...");
-    ret = spi_eeprom_init(&eeprom_config, &eeprom_handle);
-    ESP_ERROR_CHECK(ret);
 
-    ret = spi_eeprom_write_enable(eeprom_handle);
-    ESP_ERROR_CHECK(ret);
+	uint8_t wdata[128];
+	int len;
+	unsigned char str[] = "Hello";	
 
-    const char test_str[] = "Hello World!";
-    ESP_LOGI(TAG, "Write: %s", test_str);
-    for (int i = 0; i < sizeof(test_str); i++) {
-        // No need for this EEPROM to erase before write.
-        ret = spi_eeprom_write(eeprom_handle, i, test_str[i]);
-        ESP_ERROR_CHECK(ret);
+    for (int i=0; i<sizeof(str); i++) {
+        uint8_t data =  str[i];
+        wdata[i]= data;
     }
 
-    uint8_t test_buf[32] = "";
-    for (int i = 0; i < sizeof(test_str); i++) {
-        ret = spi_eeprom_read(eeprom_handle, i, &test_buf[i]);
-        ESP_ERROR_CHECK(ret);
-    }
-    ESP_LOGI(TAG, "Read: %s", test_buf);
+	for (int addr=0; addr<sizeof(str);addr++) {
+		len =  eeprom_WriteByte(&dev, addr, wdata[addr]);
+		ESP_LOGI(TAG, "WriteByte(addr=%d) len=%d: data=%d", addr, len, wdata[addr]);
+		if (len != 1) {
+			ESP_LOGI(TAG, "WriteByte Fail addr=%d", addr);
+			while(1) { vTaskDelay(1); }
+		}
+		vTaskDelay(10);
+	}
 
-    ESP_LOGI(TAG, "Example finished.");
+	vTaskDelay(1000);
+	// Read 128 byte from Address=0
+	uint8_t rbuf[128];
+	memset(rbuf, 0, 128);
+	len =  eeprom_Read(&dev, 0, rbuf, sizeof(str));
+	if (len != sizeof(str)) {
+		ESP_LOGI(TAG, "Read Fail");
+		while(1) { vTaskDelay(1); }
+	}
+	ESP_LOGI(TAG, "Read Data: len=%d", len);
+	dump(rbuf, 128);
 
+    for(uint8_t i = 0; i < len; i++){
+        printf("%c", rbuf[i]);
+	}
+	printf("\n");
 
 
     //Configure timer wake up source
