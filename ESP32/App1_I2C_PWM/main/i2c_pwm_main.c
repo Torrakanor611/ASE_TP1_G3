@@ -22,7 +22,14 @@ static const char *TAG = "TC74";
 #define LEDC_LS_CH3_CHANNEL    LEDC_CHANNEL_3
 
 
-
+/**
+ * Bibliography and examples 
+ * 
+ * https://github.com/ThomasGeor/esp32_tc74_temperature_sensor
+ * https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/ledc.html
+ * https://github.com/espressif/esp-idf/tree/master/examples/peripherals/ledc
+ * 
+ **/ 
 
 
 /**

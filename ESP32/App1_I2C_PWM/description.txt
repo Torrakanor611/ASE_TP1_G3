@@ -8,8 +8,6 @@ Componentes utilizados:
     Sensor de temperatura TC74
     ESP32
 
-Ligações/Montagem:
-
 
 Configurações
     Inicialização de dois canais pwm ledc (Channel 2 (GPIO4) e Channel 3 (GPIO5)) para fade out e fade in dos leds
