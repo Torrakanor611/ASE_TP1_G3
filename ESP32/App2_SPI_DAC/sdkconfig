@@ -129,11 +129,33 @@ CONFIG_PARTITION_TABLE_MD5=y
 # end of Partition Table
 
 #
-# Example Configuration
+# EEPROM Configuration
 #
-CONFIG_EXAMPLE_INTR_USED=y
-# CONFIG_EXAMPLE_5V_COMMANDS is not set
-# end of Example Configuration
+CONFIG_M95010=y
+# CONFIG_M95020 is not set
+# CONFIG_M95040 is not set
+# CONFIG_M95080 is not set
+# CONFIG_M95160 is not set
+# CONFIG_M95320 is not set
+# CONFIG_M95640 is not set
+# CONFIG_M95128 is not set
+# CONFIG_M95256 is not set
+# CONFIG_M95512 is not set
+# CONFIG_AT25010 is not set
+# CONFIG_AT25020 is not set
+# CONFIG_AT25040 is not set
+# CONFIG_AT25080 is not set
+# CONFIG_AT25160 is not set
+# CONFIG_AT25320 is not set
+# CONFIG_AT25640 is not set
+# CONFIG_AT25128 is not set
+# CONFIG_AT25256 is not set
+# CONFIG_AT25512 is not set
+CONFIG_CS_GPIO=12
+CONFIG_SCLK_GPIO=13
+CONFIG_MISO_GPIO=14
+CONFIG_MOSI_GPIO=15
+# end of EEPROM Configuration
 
 #
 # Compiler options

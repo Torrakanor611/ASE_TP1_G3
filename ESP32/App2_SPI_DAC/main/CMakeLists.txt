@@ -1,4 +1,4 @@
-set(srcs "spi_eeprom_main.c")
+set(COMPONENT_SRCS spi_eeprom_main.c spi_eeprom.c)
+set(COMPONENT_ADD_INCLUDEDIRS "")
 
-idf_component_register(SRCS ${srcs}
-                    INCLUDE_DIRS ".")
+register_component()
