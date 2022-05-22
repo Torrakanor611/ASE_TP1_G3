@@ -1,0 +1,7 @@
+Descrição:
+	Foi desenvolvido uma aplicação que lê uma RFID tag e apresenta o seu identificar único(UID) num display LCD.
+
+Componentes utilizados:
+	Display LCD 16x2 com interface I2C
+	kit RFIP: com RFID reader + RFID tag (x2)
+	jumper cables
