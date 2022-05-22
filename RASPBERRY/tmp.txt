@@ -1,4 +1,0 @@
-sudo apt-get install i2c-tools
-
-to download scorer and models
-https://github.com/mozilla/DeepSpeech/releases
