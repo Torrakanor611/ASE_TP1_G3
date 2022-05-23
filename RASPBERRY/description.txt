@@ -1,3 +1,0 @@
-Speech processor:
-  Using a microphone, a raspberry and a display lcd, set up a speech processor
-  in a way that what is spoken in to the mic is "printed" into the display LCD.
